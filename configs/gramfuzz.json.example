@@ -5,6 +5,8 @@
     "backend_url": ""
   },
   "modules": {
+    "command_fuzz": true,
+    "public_recon": true,
     "user_simulator": true,
     "web_inspector": true,
     "bola_fuzzer": true,

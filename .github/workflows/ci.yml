@@ -67,5 +67,5 @@ jobs:
       - name: Dry-run user-simulator
         run: python modules/user-simulator/simulator.py --bot demo --json
 
-      - name: Dry-run ai-analyzer
-        run: python modules/ai-analyzer/analyzer.py --json
+      - name: Dry-run attack-runner
+        run: python modules/attack-runner/runner.py --bot demo --json

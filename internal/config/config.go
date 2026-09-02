@@ -21,10 +21,17 @@ type TargetConfig struct {
 }
 
 type ModulesConfig struct {
-	UserSimulator bool `json:"user_simulator"`
-	WebInspector  bool `json:"web_inspector"`
-	BOLAFuzzer    bool `json:"bola_fuzzer"`
-	AIAnalyzer    bool `json:"ai_analyzer"`
+	CommandFuzz     bool `json:"command_fuzz"`
+	InjectionFuzz   bool `json:"injection_fuzz"`
+	PaymentLogic    bool `json:"payment_logic"`
+	WebhookAttack   bool `json:"webhook_attack"`
+	TelegramSurface bool `json:"telegram_surface"`
+	BotAPIAbuse     bool `json:"bot_api_abuse"`
+	PublicRecon     bool `json:"public_recon"`
+	UserSimulator   bool `json:"user_simulator"`
+	WebInspector    bool `json:"web_inspector"`
+	BOLAFuzzer      bool `json:"bola_fuzzer"`
+	AIAnalyzer      bool `json:"ai_analyzer"`
 }
 
 type ReporterConfig struct {
@@ -42,10 +49,17 @@ type AIConfig struct {
 func Default() *Config {
 	return &Config{
 		Modules: ModulesConfig{
-			UserSimulator: true,
-			WebInspector:  true,
-			BOLAFuzzer:    true,
-			AIAnalyzer:    false,
+			PublicRecon:     true,
+			CommandFuzz:     true,
+			InjectionFuzz:   true,
+			PaymentLogic:    true,
+			WebhookAttack:   true,
+			TelegramSurface: true,
+			BotAPIAbuse:     true,
+			UserSimulator:   true,
+			WebInspector:    true,
+			BOLAFuzzer:      true,
+			AIAnalyzer:      false,
 		},
 		Reporter: ReporterConfig{
 			Format: "html",
