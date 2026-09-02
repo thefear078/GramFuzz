@@ -1,0 +1,19 @@
+{
+  "name": "@gramfuzz/web-inspector",
+  "version": "0.1.0",
+  "description": "Headless Telegram Mini App inspector for GramFuzz",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inspect": "tsx src/inspector.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,2 @@
+# No external dependencies for dry-run mode.
+# For live LLM analysis, configure LM Studio locally.

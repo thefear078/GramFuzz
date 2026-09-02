@@ -1,0 +1,41 @@
+MIT License
+
+Copyright (c) 2026 kiurakku (The Fear)
+https://github.com/kiurakku
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+ETHICAL USE RESTRICTION
+
+This software is designed exclusively for authorized security testing,
+penetration testing, and security auditing of systems you own or have
+explicit written permission to test.
+
+Use of this software against systems without explicit written permission
+from the system owner is PROHIBITED and may violate applicable laws
+including but not limited to computer fraud and abuse statutes.
+
+The author (kiurakku / The Fear) accepts no liability for misuse of
+this software. By using GramFuzz, you agree to use it responsibly and
+in compliance with all applicable laws and the project's Security Policy.
+
+Contact: Telegram @thefear007
+Repository: https://github.com/kiurakku/GramFuzz
