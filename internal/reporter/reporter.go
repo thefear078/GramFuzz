@@ -62,8 +62,8 @@ func renderHTML(generatedAt time.Time, list []scanner.Finding, summary findings.
 
 	// Executive summary
 	fmt.Fprintf(&b, `<div class="executive"><h2>Executive Summary</h2>`)
-	fmt.Fprintf(&b, `<div class="risk-badge %s">%s</div>`, strings.ToLower(summary.RiskRating), html.EscapeString(summary.RiskRating))
-	fmt.Fprintf(&b, `<p>Total findings: <strong>%d</strong> | Max risk: <strong>%d/10</strong> | Avg risk: <strong>%.1f</strong></p>`, summary.Total, summary.MaxRisk, summary.AvgRisk)
+	fmt.Fprintf(&b, `<div class="risk-badge %s">Actionable: %s</div>`, strings.ToLower(summary.ActionableRating), html.EscapeString(summary.ActionableRating))
+	fmt.Fprintf(&b, `<p>Total: <strong>%d</strong> | Actionable: <strong>%d</strong> | Manual tests: <strong>%d</strong> | Max actionable risk: <strong>%d/10</strong></p>`, summary.Total, summary.Actionable, summary.ManualTests, summary.ActionableMax)
 	fmt.Fprintf(&b, `</div>`)
 
 	b.WriteString(`<div class="stats">`)
@@ -83,25 +83,40 @@ func renderHTML(generatedAt time.Time, list []scanner.Finding, summary findings.
 			fmt.Fprintf(&b, `<h3>[%s] %s</h3>`, html.EscapeString(f.ID), html.EscapeString(f.Title))
 			fmt.Fprintf(&b, `<div class="meta">%s &bull; %s &bull; %s &bull; risk %d/10`,
 				html.EscapeString(f.Module), html.EscapeString(f.Category), html.EscapeString(f.Severity), f.RiskScore)
+			if f.Confidence != "" {
+				fmt.Fprintf(&b, ` &bull; %s`, html.EscapeString(f.Confidence))
+			}
 			if f.CWE != "" {
 				fmt.Fprintf(&b, ` &bull; %s`, html.EscapeString(f.CWE))
 			}
 			b.WriteString(`</div>`)
+			if len(f.Tags) > 0 {
+				fmt.Fprintf(&b, `<div class="tags">%s</div>`, html.EscapeString(strings.Join(f.Tags, ", ")))
+			}
 			fmt.Fprintf(&b, `<p>%s</p>`, html.EscapeString(f.Description))
+			if f.Impact != "" {
+				fmt.Fprintf(&b, `<div class="impact"><strong>Impact:</strong> %s</div>`, html.EscapeString(f.Impact))
+			}
 			if f.Evidence != "" {
 				fmt.Fprintf(&b, `<div class="evidence"><strong>Evidence:</strong> %s</div>`, html.EscapeString(f.Evidence))
 			}
 			if f.PoC != "" {
 				fmt.Fprintf(&b, `<div class="poc"><strong>PoC:</strong> %s</div>`, html.EscapeString(f.PoC))
 			}
+			if f.Steps != "" {
+				fmt.Fprintf(&b, `<div class="steps"><strong>Verification:</strong> %s</div>`, html.EscapeString(f.Steps))
+			}
 			if f.Remediation != "" {
-				fmt.Fprintf(&b, `<div class="remediation"><strong>Remediation:</strong> %s</div>`, html.EscapeString(f.Remediation))
+				fmt.Fprintf(&b, `<div class="remediation"><strong>Quick fix:</strong> %s</div>`, html.EscapeString(f.Remediation))
+			}
+			if f.RemediationPlan != "" {
+				fmt.Fprintf(&b, `<div class="plan"><strong>Remediation plan:</strong> %s</div>`, html.EscapeString(f.RemediationPlan))
 			}
 			b.WriteString(`</div>`)
 		}
 	}
 
-	b.WriteString(`</div><div class="footer">GramFuzz v0.2.0 &mdash; Ethical DAST for Telegram &bull; github.com/kiurakku/GramFuzz</div></body></html>`)
+	b.WriteString(`</div><div class="footer">GramFuzz v0.4.0 &mdash; Ethical DAST for Telegram &bull; github.com/kiurakku/GramFuzz</div></body></html>`)
 	return b.String()
 }
 
@@ -146,10 +161,14 @@ const htmlReportHead = `<!DOCTYPE html>
     .finding.info { border-left-color: #4488ff; }
     .finding h3 { color: var(--gold); margin-bottom: 0.25rem; font-size: 1rem; }
     .finding .meta { color: var(--muted); font-size: 0.75rem; margin-bottom: 0.5rem; }
-    .finding .evidence, .finding .poc, .finding .remediation { padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.85rem; margin-top: 0.5rem; word-break: break-all; }
-    .finding .evidence { background: #111; font-family: monospace; }
-    .finding .poc { background: #1a1500; border: 1px solid #443300; }
+    .finding .evidence, .finding .poc, .finding .remediation, .finding .impact, .finding .steps, .finding .plan, .finding .tags { padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.85rem; margin-top: 0.5rem; word-break: break-all; }
+    .finding .tags { background: #0a1520; color: #88ccff; border: 1px solid #224466; }
+    .finding .evidence { background: #111; font-family: monospace; color: #e8e8e8; }
+    .finding .poc { background: #1a1500; border: 1px solid #443300; color: #ffdd88; }
+    .finding .impact { background: #1a0808; border: 1px solid #442222; color: #ffaaaa; }
+    .finding .steps { background: #0a0a1a; border: 1px solid #222244; color: #ccccff; }
     .finding .remediation { background: #001a00; border: 1px solid #003300; color: #aaffaa; }
+    .finding .plan { background: #001018; border: 1px solid #003344; color: #aaeeff; }
     .footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; border-top: 1px solid #222; }
   </style>
 </head>

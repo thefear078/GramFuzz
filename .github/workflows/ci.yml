@@ -35,6 +35,39 @@ jobs:
       - name: Demo scan
         run: ./gramfuzz scan --no-banner
 
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: gramfuzz-linux-amd64
+          path: gramfuzz
+          if-no-files-found: error
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: go build -o gramfuzz.exe ./cmd/gramfuzz
+
+      - name: Test
+        run: go test ./...
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: gramfuzz-windows-amd64
+          path: gramfuzz.exe
+          if-no-files-found: error
+
   security:
     runs-on: ubuntu-latest
     steps:

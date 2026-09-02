@@ -30,12 +30,26 @@ func ScanProfile(ctx context.Context, username string, profile *Profile, fetchEr
 		).WithMeta("CWE-200", "Verify bot username is correct and publicly accessible.", "")}
 	}
 
+	caps := AnalyzeCapabilities(profile)
 	var list []findings.Finding
 	list = append(list, findings.New(
 		"RECON-001", "info", "public-recon", "recon",
 		"Target profile enumerated",
 		fmt.Sprintf("Bot type: %s | Title: %s", profile.BotType(), profile.Title),
 		fmt.Sprintf("https://t.me/%s", username),
+	).WithDetail(findings.ConfidenceInfo, []string{"recon", "profile"}, "", "", ""))
+
+	list = append(list, findings.New(
+		"RECON-ASSESSMENT", "info", "public-recon", "recon",
+		"Bot-specific attack surface assessment",
+		caps.AssessmentText(username),
+		fmt.Sprintf("https://t.me/%s", username),
+	).WithDetail(
+		findings.ConfidenceInfo,
+		append([]string{"assessment", "scoped"}, caps.Keywords...),
+		"Defines which tests apply to this bot vs generic playbook noise.",
+		"Use this section to prioritize manual verification in Telegram.",
+		"Review detected themes and skip irrelevant vectors (e.g. Stars if no payment logic).",
 	))
 
 	if profile.BotType() == "classic" {
@@ -128,20 +142,14 @@ func ScanOSINT(ctx context.Context, username string, profile *Profile) []finding
 		))
 	}
 
-	// Deep link attack surface
-	deepLinks := []struct{ name, url, desc string }{
-		{"start", fmt.Sprintf("https://t.me/%s?start=PAYLOAD", username), "Referral / deep link injection"},
-		{"startgroup", fmt.Sprintf("https://t.me/%s?startgroup=PAYLOAD", username), "Group add deep link abuse"},
-		{"share", "https://t.me/share/url?url=PAYLOAD", "Share URL injection"},
-	}
-	for _, dl := range deepLinks {
-		list = append(list, findings.New(
-			"OSINT-DEEPLINK-"+strings.ToUpper(dl.name), "info", "public-recon", "surface",
-			fmt.Sprintf("Deep link vector: %s", dl.name),
-			dl.desc,
-			dl.url,
-		).WithMeta("CWE-20", "Validate and sanitize all deep link parameters server-side.", dl.url))
-	}
+	// Deep link attack surface (single consolidated item)
+	list = append(list, findings.New(
+		"OSINT-DEEPLINK", "info", "public-recon", "surface",
+		"Deep link vectors for this bot",
+		fmt.Sprintf("Applicable Telegram deep links: ?start= (referral/payloads), ?startgroup= (group add). Base: https://t.me/%s?start=PAYLOAD", username),
+		fmt.Sprintf("https://t.me/%s?start=PAYLOAD", username),
+	).WithMeta("CWE-20", "Validate and sanitize all deep link parameters server-side.", "").
+		WithDetail(findings.ConfidenceInfo, []string{"deep-link", "surface"}, "Forged start params may affect bot logic if not validated.", "Open crafted ?start= links in Telegram.", "Allowlist format and length of start parameter."))
 
 	// Typosquatting awareness (limited variants)
 	base := strings.TrimSuffix(strings.ToLower(username), "bot")
@@ -165,47 +173,10 @@ func ScanOSINT(ctx context.Context, username string, profile *Profile) []finding
 }
 
 // ScanStartParams runs active start-parameter probing with reflection detection.
-func ScanStartParams(ctx context.Context, username string) []findings.Finding {
-	results, vectors := TestStartParams(ctx, username)
-	var list []findings.Finding
-
-	unsafeReflection := 0
-	for _, r := range results {
-		if r.Reflected && !r.EncodedSafe {
-			unsafeReflection++
-		}
-	}
-
-	for _, v := range vectors {
-		sev := v.Severity
-		desc := v.Description
-
-		// Elevate if we found matching reflection result
-		for _, r := range results {
-			if r.Payload == v.Name && r.Reflected && !r.EncodedSafe {
-				sev = "high"
-				desc += " | ACTIVE: Payload reflected unsafely in t.me page HTML"
-			}
-		}
-
-		list = append(list, findings.New(
-			v.ID, sev, "start-fuzzer", "injection",
-			fmt.Sprintf("Start param vector: %s", v.Name),
-			desc,
-			v.PoCLink,
-		).WithMeta("CWE-20", "Validate start parameters; use allowlists; never pass raw input to SQL/shell.", v.PoCLink))
-	}
-
-	if unsafeReflection > 0 {
-		list = append(list, findings.New(
-			"START-REFLECT", "high", "start-fuzzer", "injection",
-			"Unsafe parameter reflection on t.me landing page",
-			fmt.Sprintf("%d payload(s) reflected without encoding in public HTML.", unsafeReflection),
-			fmt.Sprintf("https://t.me/%s?start=PAYLOAD", username),
-		).WithMeta("CWE-79", "Ensure all user input is HTML-encoded before rendering.", ""))
-	}
-
-	return list
+func ScanStartParams(ctx context.Context, username string, profile *Profile) []findings.Finding {
+	caps := AnalyzeCapabilities(profile)
+	results := TestStartParams(ctx, username, caps)
+	return BuildStartFindings(username, caps, results)
 }
 
 // ScanInfrastructure audits linked infrastructure.
@@ -305,7 +276,7 @@ func Scan(ctx context.Context, username string) []findings.Finding {
 	all = append(all, ScanProfile(ctx, username, profile, err)...)
 	if profile != nil {
 		all = append(all, ScanOSINT(ctx, username, profile)...)
-		all = append(all, ScanStartParams(ctx, username)...)
+		all = append(all, ScanStartParams(ctx, username, profile)...)
 		if len(profile.ExternalURLs) > 0 {
 			all = append(all, ScanInfrastructure(ctx, profile.ExternalURLs)...)
 		}
