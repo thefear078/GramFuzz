@@ -13,6 +13,8 @@
 *.test
 *.out
 vendor/
+.gocache/
+.gotmp/
 
 # Reports (generated)
 /reports/

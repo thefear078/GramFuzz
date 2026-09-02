@@ -1,4 +1,4 @@
-.PHONY: build run test clean modules scan demo
+.PHONY: build run test test-short clean modules scan demo install
 
 BINARY=gramfuzz
 MAIN=./cmd/gramfuzz
@@ -12,6 +12,11 @@ run: build
 test:
 	go vet ./...
 	go test ./...
+
+# Hermetic tests (skips the live t.me integration test) — what CI runs.
+test-short:
+	go vet ./...
+	go test -short ./...
 
 scan: build
 	./$(BINARY) scan --bot demo_bot --webapp https://example.com/app --backend https://api.example.com --format both
