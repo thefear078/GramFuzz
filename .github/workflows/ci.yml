@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -o gramfuzz ./cmd/gramfuzz
+
+      - name: Test
+        run: go test ./...
+
+      - name: Demo scan
+        run: ./gramfuzz scan --no-banner
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+  python-modules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Lint user-simulator
+        run: python -m py_compile modules/user-simulator/simulator.py
+
+      - name: Lint ai-analyzer
+        run: python -m py_compile modules/ai-analyzer/analyzer.py
+
+      - name: Dry-run user-simulator
+        run: python modules/user-simulator/simulator.py --bot demo --json
+
+      - name: Dry-run ai-analyzer
+        run: python modules/ai-analyzer/analyzer.py --json

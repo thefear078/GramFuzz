@@ -1,0 +1,23 @@
+{
+  "target": {
+    "bot_username": "",
+    "web_app_url": "",
+    "backend_url": ""
+  },
+  "modules": {
+    "user_simulator": true,
+    "web_inspector": true,
+    "bola_fuzzer": true,
+    "ai_analyzer": false
+  },
+  "reporter": {
+    "format": "html",
+    "output": "./reports",
+    "verbose": false
+  },
+  "ai": {
+    "enabled": false,
+    "endpoint": "http://localhost:1234/v1",
+    "model": "qwen2.5"
+  }
+}

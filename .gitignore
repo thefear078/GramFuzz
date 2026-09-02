@@ -1,0 +1,70 @@
+# Binaries
+/gramfuzz
+/gramfuzz.exe
+/dist/
+/build/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Reports (generated)
+/reports/
+*.html
+!internal/reporter/*.go
+
+# Secrets & credentials — NEVER commit
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+credentials.json
+secrets.yaml
+secrets.json
+bot_token*
+*api_hash*
+*api_id*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.envrc
+
+# Node
+node_modules/
+modules/web-inspector/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local config (may contain targets)
+gramfuzz.json
+!configs/gramfuzz.json.example
+
+# Playwright
+modules/web-inspector/test-results/
+modules/web-inspector/playwright-report/
+
+# Logs
+*.log
+logs/
