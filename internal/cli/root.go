@@ -206,15 +206,18 @@ func writeReports(cfg *config.Config, list []scanner.Finding) {
 
 	fmt.Println()
 	summary := findings.Summarize(list)
-	term.Cyan("  Engagement complete — %d finding(s) | Risk: %s (%d/10 max)\n",
-		len(list), summary.RiskRating, summary.MaxRisk)
+	term.Cyan("  Engagement complete — %d items | Actionable: %s (%d/10) | Manual tests: %d\n",
+		len(list), summary.ActionableRating, summary.ActionableMax, summary.ManualTests)
 }
 
 func printRiskSummary(list []scanner.Finding) {
 	s := findings.Summarize(list)
-	if s.BySeverity["critical"] > 0 || s.BySeverity["high"] > 0 {
-		term.Yellow("\n  ⚠  Risk Rating: %s — %d critical, %d high severity finding(s)\n",
-			s.RiskRating, s.BySeverity["critical"], s.BySeverity["high"])
+	if s.Actionable > 0 {
+		term.Yellow("\n  ⚠  Actionable risk: %s — %d confirmed/likely finding(s)\n",
+			s.ActionableRating, s.Actionable)
+	} else if s.ManualTests > 0 {
+		term.Yellow("\n  ○  No confirmed issues — %d manual test(s) require verification in Telegram\n",
+			s.ManualTests)
 	}
 }
 
