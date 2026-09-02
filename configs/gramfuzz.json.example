@@ -5,11 +5,16 @@
     "backend_url": ""
   },
   "modules": {
-    "command_fuzz": true,
     "public_recon": true,
-    "user_simulator": true,
-    "web_inspector": true,
+    "command_fuzz": true,
+    "injection_fuzz": true,
+    "payment_logic": true,
+    "webhook_attack": true,
+    "telegram_surface": true,
+    "bot_api_abuse": true,
     "bola_fuzzer": true,
+    "web_inspector": true,
+    "user_simulator": true,
     "ai_analyzer": false
   },
   "reporter": {

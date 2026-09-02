@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go&logoColor=white" alt="Go 1.23+"></a>
+  <a href="go.mod"><img src="https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white" alt="Go 1.25+"></a>
   <a href="SECURITY.md"><img src="https://img.shields.io/badge/Security-Policy-red" alt="Security Policy"></a>
 </p>
 
@@ -33,12 +33,17 @@ GramFuzz is a Dynamic Application Security Testing (DAST) framework built specif
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
 - [CLI Reference](#cli-reference)
-- [Modules](#modules)
+- [The Engine Pipeline](#the-engine-pipeline)
+- [Satellite Modules](#satellite-modules)
 - [Configuration](#configuration)
 - [Reports](#reports)
+- [Documentation](#documentation)
 - [Ethical Use](#ethical-use)
 - [Author & Contact](#author--contact)
 - [License](#license)
+
+> **Contributing or extending GramFuzz?** Start with [CLAUDE.md](CLAUDE.md) — a
+> one-page orientation to the codebase — and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Problems Addressed
 
@@ -52,25 +57,36 @@ GramFuzz is a Dynamic Application Security Testing (DAST) framework built specif
 
 ## Architecture
 
+GramFuzz is a **single Go binary** running a 13-phase pentest pipeline, with
+optional Python/TypeScript satellite modules for live interaction. It needs no
+bot token or API credentials — everything degrades gracefully to public recon.
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    CLI Engine (Go)                       │
-│         Orchestration • Queues • Logging • Reports       │
-├──────────────┬──────────────┬──────────────┬─────────────┤
-│ User         │ Web App      │ BOLA         │ AI Payload  │
-│ Simulator    │ Inspector    │ Fuzzer       │ Analyzer    │
-│ (Python)     │ (TypeScript) │ (Go)         │ (Python)    │
-│ Telethon     │ Playwright   │ JWT/ID swap  │ Local LLM   │
-└──────────────┴──────────────┴──────────────┴─────────────┘
+gramfuzz (Go):  cli -> scanner -> pentest.Run(ctx, cfg)
+                profile target | run enabled phases | score | report
+
+  recon          fuzz           attack          webinspect
+  phases 1-3,12  phases 4,10    phases 5-9      phase 11
+  profile/OSINT  command/BOLA   inj/pay/hook    Mini App SAST
+
+  findings (scoring) | reporter (HTML/JSON/PDF) | assets (wordlists)
+
+  Optional satellites (out of pipeline, independently runnable):
+  user-simulator (Py/Telethon) | web-inspector (TS/Playwright)
+  attack-runner (Py)           | ai-analyzer (Py/local LLM)
 ```
+
+The full package map and data flow live in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the authoritative module list is
+[`internal/catalog`](internal/catalog/catalog.go), rendered by `gramfuzz modules`.
 
 ## Quick Start
 
 ### Requirements
 
-- Go 1.23+
-- Python 3.10+ (user-simulator, ai-analyzer modules)
-- Node.js 18+ (web-inspector module)
+- Go 1.25+ (the only hard requirement — builds a single static binary)
+- Python 3.10+ *(optional)* — `user-simulator`, `attack-runner`, `ai-analyzer`
+- Node.js 18+ *(optional)* — `web-inspector`
 
 ### Build & Run
 
@@ -106,14 +122,50 @@ go build -o gramfuzz.exe .\cmd\gramfuzz
 
 | Command | Description |
 |---|---|
-| `gramfuzz scan` | Run a full security scan |
-| `gramfuzz fuzz --backend URL` | BOLA/IDOR fuzzing against API endpoints |
-| `gramfuzz modules` | List available modules |
+| `gramfuzz pentest --bot USER` | Full 13-phase engagement (all modules on, 15-min budget) |
+| `gramfuzz scan` | Security scan with the configured/default modules |
+| `gramfuzz fuzz --backend URL` | BOLA/IDOR fuzzing against API endpoints only |
+| `gramfuzz modules [--json]` | List the module catalog (`--json` for machine-readable output) |
 | `gramfuzz version` | Print version |
-| `--no-banner` | Suppress ASCII startup banner |
-| `-c, --config FILE` | Load JSON configuration file |
 
-## Modules
+| Flag | Applies to | Description |
+|---|---|---|
+| `--bot USER` | scan, pentest | Target bot username |
+| `--webapp URL` | scan, pentest | Telegram Mini App URL |
+| `--backend URL` | scan, pentest, fuzz | Backend API base URL |
+| `--format` | scan, pentest | `html` (default) · `json` · `pdf` · `both` · `all` |
+| `--output DIR` | all | Report directory (default `./reports`) |
+| `--no-banner` | global | Suppress the ASCII banner |
+| `-c, --config FILE` | global | Load a JSON configuration file |
+
+## The Engine Pipeline
+
+`pentest`/`scan` run an ordered set of phases, each gated by a config toggle and
+short-circuiting when its input is absent. Run `gramfuzz modules` for the live
+list; the table below mirrors [`internal/catalog`](internal/catalog/catalog.go).
+
+| # | Phase | Toggle |
+|---|---|---|
+| 1-3 | Recon · OSINT · Start-param probing | `public_recon` |
+| 4 | Command enumeration (ffuf-style) | `command_fuzz` |
+| 5 | Injection engine (SQLi/XSS/SSTI/RCE) | `injection_fuzz` |
+| 6 | Payment & logic bypass | `payment_logic` |
+| 7 | Telegram platform surface | `telegram_surface` |
+| 8 | Webhook & SSRF | `webhook_attack` |
+| 9 | Bot API abuse | `bot_api_abuse` |
+| 10 | API discovery & BOLA (dirbuster) | `bola_fuzzer` |
+| 11 | Web App static analysis | `web_inspector` |
+| 12 | Infrastructure audit | `public_recon` |
+| 13 | Python attack runner | `public_recon` |
+
+Findings carry a **severity** (→ risk 0-10) and a **confidence**; only
+`confirmed`/`likely` items drive the headline *actionable* rating, so manual
+checks never inflate the score. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Satellite Modules
+
+Optional helpers that run independently of the Go binary — useful for live
+interaction the credential-free engine can't perform on its own.
 
 ### User Simulator (Python / Telethon)
 
@@ -147,7 +199,8 @@ python analyzer.py --live --endpoint http://localhost:1234/v1
 
 ## Configuration
 
-Copy `configs/gramfuzz.json.example` to `gramfuzz.json`:
+Copy `configs/gramfuzz.json.example` to `gramfuzz.json` and pass it with `-c`.
+The `modules` block toggles each engine phase (keys match `gramfuzz modules`):
 
 ```json
 {
@@ -157,20 +210,41 @@ Copy `configs/gramfuzz.json.example` to `gramfuzz.json`:
     "backend_url": "https://api.example.com"
   },
   "modules": {
-    "user_simulator": true,
-    "web_inspector": true,
+    "public_recon": true,
+    "command_fuzz": true,
+    "injection_fuzz": true,
+    "payment_logic": true,
+    "webhook_attack": true,
+    "telegram_surface": true,
+    "bot_api_abuse": true,
     "bola_fuzzer": true,
+    "web_inspector": true,
+    "user_simulator": true,
     "ai_analyzer": false
-  }
+  },
+  "reporter": { "format": "html", "output": "./reports" },
+  "ai": { "enabled": false, "endpoint": "http://localhost:1234/v1", "model": "qwen2.5" }
 }
 ```
 
 ## Reports
 
-Reports are saved to `./reports/`:
+Reports are written to `--output` (default `./reports/`) with a timestamped name.
+Select formats with `--format`:
 
-- **HTML** — visual report with severity classification
-- **JSON** — machine-readable format for CI/CD integration
+- **HTML** (default) — self-contained dark-theme report with severity cards
+- **JSON** — machine-readable `{summary, findings}` for CI/CD integration
+- **PDF** — branded report (cover + summary + findings) with embedded logo
+- **both** — HTML + JSON · **all** — HTML + JSON + PDF
+
+## Documentation
+
+| Doc | For |
+|---|---|
+| [CLAUDE.md](CLAUDE.md) | One-page orientation for contributors & AI agents |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design reference: pipeline, findings model, reporting |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [`internal/catalog`](internal/catalog/catalog.go) | The authoritative module list (edit here to add one) |
 
 ## Ethical Use
 

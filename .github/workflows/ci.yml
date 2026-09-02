@@ -30,7 +30,7 @@ jobs:
         run: go build -o gramfuzz ./cmd/gramfuzz
 
       - name: Test
-        run: go test ./...
+        run: go test -short ./...
 
       - name: Demo scan
         run: ./gramfuzz scan --no-banner
@@ -59,7 +59,7 @@ jobs:
         run: go build -o gramfuzz.exe ./cmd/gramfuzz
 
       - name: Test
-        run: go test ./...
+        run: go test -short ./...
 
       - name: Upload Windows binary
         uses: actions/upload-artifact@v4

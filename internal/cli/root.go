@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/kiurakku/GramFuzz/internal/banner"
+	"github.com/kiurakku/GramFuzz/internal/catalog"
 	"github.com/kiurakku/GramFuzz/internal/config"
 	"github.com/kiurakku/GramFuzz/internal/findings"
 	"github.com/kiurakku/GramFuzz/internal/reporter"
@@ -30,7 +32,9 @@ func Execute() {
 	cmd := args[0]
 	subArgs := filterGlobalFlags(args[1:])
 
-	if !noBanner && cmd != "help" {
+	// Keep machine-readable output clean.
+	jsonModules := cmd == "modules" && hasFlag(subArgs, "--json")
+	if !noBanner && cmd != "help" && !jsonModules {
 		banner.Print()
 	}
 
@@ -42,7 +46,7 @@ func Execute() {
 	case "fuzz":
 		runFuzzCommand(configPath, subArgs)
 	case "modules":
-		runModulesCommand()
+		runModulesCommand(subArgs)
 	case "version":
 		fmt.Println(banner.Compact())
 	case "help", "-h", "--help":
@@ -143,28 +147,31 @@ func runFuzzCommand(configPath string, args []string) {
 	writeReports(cfg, findings)
 }
 
-func runModulesCommand() {
-	banner.Divider("Available Modules")
-	modules := []struct{ name, lang, desc string }{
-		{"CLI Engine", "Go", "13-phase pentest pipeline with risk scoring"},
-		{"Public Recon", "Go", "t.me profiling, secrets, bot classification"},
-		{"OSINT Engine", "Go", "Domain/email extraction, deep links, typosquatting"},
-		{"Start Fuzzer", "Go", "40+ deep-link injection probes with reflection detection"},
-		{"Command Fuzzer", "Go", "150+ commands (ffuf/dirbuster wordlist)"},
-		{"Injection Engine", "Go", "SQLi/XSS/SSTI/RCE payloads (sqlmap-inspired)"},
-		{"Payment Logic", "Go", "Financial bypass, coupon abuse, TON/Stars vectors"},
-		{"Telegram Surface", "Go", "Platform-specific: inline mode, login_url, games"},
-		{"Webhook Attacks", "Go", "SSRF, replay, secret_token bypass (nuclei-style)"},
-		{"Bot API Abuse", "Go", "getMe/getUpdates/getWebhookInfo probing"},
-		{"BOLA Fuzzer", "Go", "90+ API paths + IDOR + auth header bypass"},
-		{"Web Inspector", "Go", "Mini App secrets, JWT, CSP analysis"},
-		{"Attack Runner", "Python", "sqlmap/ffuf/nmap-inspired auxiliary payloads"},
-		{"PDF Reporter", "Go", "Branded PDF report with embedded logo"},
+func runModulesCommand(args []string) {
+	if hasFlag(args, "--json") {
+		data, err := json.MarshalIndent(catalog.All(), "", "  ")
+		exitErr(err)
+		fmt.Println(string(data))
+		return
 	}
-	for _, m := range modules {
-		term.YellowBold("  ▸ %s", m.name)
-		term.Cyan(" [%s]\n", m.lang)
-		term.Dim("    %s\n\n", m.desc)
+
+	banner.Divider("Available Modules")
+
+	term.CyanPrintln("  Engine pipeline (gated by config toggles):")
+	fmt.Println()
+	for _, m := range catalog.Engine() {
+		term.YellowBold("  %2d. %s", m.Phase, m.Name)
+		term.Cyan(" [%s]", m.Lang)
+		term.Dim("  (%s)\n", m.ConfigKey)
+		term.Dim("      %s\n\n", m.Summary)
+	}
+
+	term.CyanPrintln("  Auxiliary components:")
+	fmt.Println()
+	for _, m := range catalog.Auxiliary() {
+		term.YellowBold("  ▸  %s", m.Name)
+		term.Cyan(" [%s]\n", m.Lang)
+		term.Dim("      %s\n\n", m.Summary)
 	}
 }
 
@@ -281,7 +288,7 @@ func printUsage() {
   gramfuzz pentest [--bot USER] [--format all|pdf|html|json|both]
   gramfuzz scan    [--bot USER] [--webapp URL] [--backend URL] [--format html|json|both]
   gramfuzz fuzz    --backend URL
-  gramfuzz modules
+  gramfuzz modules [--json]
   gramfuzz version
 
 Global flags:
