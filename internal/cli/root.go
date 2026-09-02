@@ -10,6 +10,7 @@ import (
 
 	"github.com/kiurakku/GramFuzz/internal/banner"
 	"github.com/kiurakku/GramFuzz/internal/config"
+	"github.com/kiurakku/GramFuzz/internal/findings"
 	"github.com/kiurakku/GramFuzz/internal/reporter"
 	"github.com/kiurakku/GramFuzz/internal/scanner"
 	"github.com/kiurakku/GramFuzz/internal/term"
@@ -35,7 +36,9 @@ func Execute() {
 
 	switch cmd {
 	case "scan":
-		runScanCommand(configPath, subArgs)
+		runScanCommand(configPath, subArgs, false)
+	case "pentest":
+		runScanCommand(configPath, subArgs, true)
 	case "fuzz":
 		runFuzzCommand(configPath, subArgs)
 	case "modules":
@@ -51,7 +54,7 @@ func Execute() {
 	}
 }
 
-func runScanCommand(configPath string, args []string) {
+func runScanCommand(configPath string, args []string, fullPentest bool) {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
 	bot := fs.String("bot", "", "Target bot username")
 	webapp := fs.String("webapp", "", "Telegram Mini App URL")
@@ -62,6 +65,18 @@ func runScanCommand(configPath string, args []string) {
 
 	cfg, err := config.Load(configPath)
 	exitErr(err)
+
+	if fullPentest {
+		cfg.Modules.PublicRecon = true
+		cfg.Modules.CommandFuzz = true
+		cfg.Modules.InjectionFuzz = true
+		cfg.Modules.PaymentLogic = true
+		cfg.Modules.WebhookAttack = true
+		cfg.Modules.TelegramSurface = true
+		cfg.Modules.BotAPIAbuse = true
+		cfg.Modules.BOLAFuzzer = true
+		cfg.Modules.WebInspector = true
+	}
 
 	if *output != "" {
 		cfg.Reporter.Output = *output
@@ -79,17 +94,27 @@ func runScanCommand(configPath string, args []string) {
 		cfg.Target.BackendURL = *backend
 	}
 
-	banner.Divider("Security Scan")
+	if fullPentest {
+		banner.Divider("Full Penetration Test")
+	} else {
+		banner.Divider("Security Scan")
+	}
+
 	if cfg.Target.BotUsername == "" && cfg.Target.WebAppURL == "" && cfg.Target.BackendURL == "" {
 		term.YellowPrintln("  No target specified. Running in demo mode.")
-		term.YellowPrintln("  Use: gramfuzz scan --bot mybot --webapp URL --backend URL")
+		term.YellowPrintln("  Use: gramfuzz pentest --bot mybot")
 		fmt.Println()
 	}
 
-	ctx, cancel := contextWithTimeout()
+	timeout := 5 * time.Minute
+	if fullPentest {
+		timeout = 15 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	findings, err := scanner.New(cfg).Run(ctx)
 	exitErr(err)
+	printRiskSummary(findings)
 	writeReports(cfg, findings)
 }
 
@@ -121,12 +146,20 @@ func runFuzzCommand(configPath string, args []string) {
 func runModulesCommand() {
 	banner.Divider("Available Modules")
 	modules := []struct{ name, lang, desc string }{
-		{"CLI Engine", "Go", "Core orchestrator — request queues, logging, module coordination"},
-		{"User Simulator", "Python/Telethon", "MTProto client — bot interaction, initData interception"},
-		{"Web App Inspector", "TypeScript/Playwright", "Headless TMA renderer — API mapping, XHR capture"},
-		{"BOLA Fuzzer", "Go", "Token & ID mutation engine for access control testing"},
-		{"AI Payload Analyzer", "Python/LLM", "Local LLM context analysis — attack vector generation"},
-		{"Reporter", "Go", "HTML/JSON reports with reproducible PoC exports"},
+		{"CLI Engine", "Go", "13-phase pentest pipeline with risk scoring"},
+		{"Public Recon", "Go", "t.me profiling, secrets, bot classification"},
+		{"OSINT Engine", "Go", "Domain/email extraction, deep links, typosquatting"},
+		{"Start Fuzzer", "Go", "40+ deep-link injection probes with reflection detection"},
+		{"Command Fuzzer", "Go", "150+ commands (ffuf/dirbuster wordlist)"},
+		{"Injection Engine", "Go", "SQLi/XSS/SSTI/RCE payloads (sqlmap-inspired)"},
+		{"Payment Logic", "Go", "Financial bypass, coupon abuse, TON/Stars vectors"},
+		{"Telegram Surface", "Go", "Platform-specific: inline mode, login_url, games"},
+		{"Webhook Attacks", "Go", "SSRF, replay, secret_token bypass (nuclei-style)"},
+		{"Bot API Abuse", "Go", "getMe/getUpdates/getWebhookInfo probing"},
+		{"BOLA Fuzzer", "Go", "90+ API paths + IDOR + auth header bypass"},
+		{"Web Inspector", "Go", "Mini App secrets, JWT, CSP analysis"},
+		{"Attack Runner", "Python", "sqlmap/ffuf/nmap-inspired auxiliary payloads"},
+		{"PDF Reporter", "Go", "Branded PDF report with embedded logo"},
 	}
 	for _, m := range modules {
 		term.YellowBold("  ▸ %s", m.name)
@@ -135,30 +168,54 @@ func runModulesCommand() {
 	}
 }
 
-func writeReports(cfg *config.Config, findings []scanner.Finding) {
+func writeReports(cfg *config.Config, list []scanner.Finding) {
 	banner.Divider("Report Generation")
 	format := cfg.Reporter.Format
 
 	switch format {
-	case "both":
-		jp, err := reporter.WriteJSON(cfg.Reporter.Output, findings)
+	case "all":
+		jp, err := reporter.WriteJSON(cfg.Reporter.Output, list)
 		exitErr(err)
 		term.Green("  ✓ JSON report: %s\n", jp)
-		hp, err := reporter.WriteHTML(cfg.Reporter.Output, findings)
+		hp, err := reporter.WriteHTML(cfg.Reporter.Output, list)
+		exitErr(err)
+		term.Green("  ✓ HTML report: %s\n", hp)
+		pp, err := reporter.WritePDF(cfg.Reporter.Output, list)
+		exitErr(err)
+		term.Green("  ✓ PDF report:  %s\n", pp)
+	case "both":
+		jp, err := reporter.WriteJSON(cfg.Reporter.Output, list)
+		exitErr(err)
+		term.Green("  ✓ JSON report: %s\n", jp)
+		hp, err := reporter.WriteHTML(cfg.Reporter.Output, list)
 		exitErr(err)
 		term.Green("  ✓ HTML report: %s\n", hp)
 	case "json":
-		p, err := reporter.WriteJSON(cfg.Reporter.Output, findings)
+		p, err := reporter.WriteJSON(cfg.Reporter.Output, list)
 		exitErr(err)
 		term.Green("  ✓ JSON report: %s\n", p)
+	case "pdf":
+		p, err := reporter.WritePDF(cfg.Reporter.Output, list)
+		exitErr(err)
+		term.Green("  ✓ PDF report:  %s\n", p)
 	default:
-		p, err := reporter.WriteHTML(cfg.Reporter.Output, findings)
+		p, err := reporter.WriteHTML(cfg.Reporter.Output, list)
 		exitErr(err)
 		term.Green("  ✓ HTML report: %s\n", p)
 	}
 
 	fmt.Println()
-	term.Cyan("  Scan complete — %d finding(s)\n", len(findings))
+	summary := findings.Summarize(list)
+	term.Cyan("  Engagement complete — %d finding(s) | Risk: %s (%d/10 max)\n",
+		len(list), summary.RiskRating, summary.MaxRisk)
+}
+
+func printRiskSummary(list []scanner.Finding) {
+	s := findings.Summarize(list)
+	if s.BySeverity["critical"] > 0 || s.BySeverity["high"] > 0 {
+		term.Yellow("\n  ⚠  Risk Rating: %s — %d critical, %d high severity finding(s)\n",
+			s.RiskRating, s.BySeverity["critical"], s.BySeverity["high"])
+	}
 }
 
 func contextWithTimeout() (context.Context, context.CancelFunc) {
@@ -218,8 +275,9 @@ func filterGlobalFlags(args []string) []string {
 
 func printUsage() {
 	fmt.Print(`Usage:
-  gramfuzz scan   [--bot USER] [--webapp URL] [--backend URL] [--format html|json|both]
-  gramfuzz fuzz   --backend URL
+  gramfuzz pentest [--bot USER] [--format all|pdf|html|json|both]
+  gramfuzz scan    [--bot USER] [--webapp URL] [--backend URL] [--format html|json|both]
+  gramfuzz fuzz    --backend URL
   gramfuzz modules
   gramfuzz version
 
@@ -228,8 +286,8 @@ Global flags:
   -c, --config FILE JSON config file
 
 Examples:
-  gramfuzz scan
-  gramfuzz scan --bot mybot --backend https://api.example.com --format both
+  gramfuzz pentest --bot MaGa4BoT --format all
+  gramfuzz scan --bot mybot --backend https://api.example.com
   gramfuzz fuzz --backend https://api.example.com
 `)
 }

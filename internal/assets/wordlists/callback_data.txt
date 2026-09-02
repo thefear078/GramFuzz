@@ -1,0 +1,24 @@
+{"action":"admin"}
+{"role":"admin"}
+{"is_admin":true}
+{"user_id":1}
+{"user_id":0}
+{"id":1}
+admin:true
+role:admin
+user:1
+callback:../../
+%00admin
+1 OR 1=1
+'; DROP TABLE--
+eyJhY3Rpb24iOiJhZG1pbiJ9
+b64:YWRtaW4=
+pay:skip
+wallet:admin
+balance:999999
+withdraw:all
+refund:self
+coupon:FREE100
+vip:1
+premium:true
+subscription:lifetime
